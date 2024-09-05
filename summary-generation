@@ -1,0 +1,100 @@
+import nltk
+from nltk.corpus import stopwords
+import string
+from gensim.models import Word2Vec
+from transformers import pipeline
+
+nltk.download('stopwords')
+
+# Preprocess the text
+def preprocess_text(text):
+    sentences = []
+    tokens = text.lower().split()
+    stop_words = set(stopwords.words('english'))
+    punctuations = set(string.punctuation)
+
+    tokens = [''.join(c for c in w if c not in punctuations) for w in tokens if w not in stop_words]
+
+    sentence = []
+    for token in tokens:
+        if token == "\\list":
+            if sentence:
+                sentences.append(sentence)
+                sentence = []
+        else:
+            sentence.append(token)
+
+    if sentence:
+        sentences.append(sentence)
+
+    return sentences
+
+def summarize_text(text, chunk_size=1000, max_length=200):
+    """
+    Summarize the given text using the Hugging Face transformers pipeline.
+
+    Parameters:
+        text (str): The input text to summarize.
+        chunk_size (int): The maximum number of tokens per chunk.
+        max_length (int): The maximum length of the summary in tokens.
+
+    Returns:
+        str: The summarized text.
+    """
+    # Use a text summarization pipeline from Hugging Face transformers
+    summarization_pipeline = pipeline("summarization")
+
+    # Split the text into smaller chunks
+    chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+
+    # Summarize each chunk and concatenate the summaries
+    summaries = []
+    for chunk in chunks:
+        summary_chunk = summarization_pipeline(chunk, max_length=max_length, min_length=30, do_sample=False)
+        summaries.append(summary_chunk[0]["summary_text"])
+
+    # Join all the summaries into one final summary
+    final_summary = " ".join(summaries)
+
+    return final_summary
+
+# Train the word embeddings
+def train_word_embeddings(preprocessed_sentences):
+    return Word2Vec(preprocessed_sentences, vector_size=128, window=5, min_count=1, sg=1, epochs=30)
+
+# Function to answer questions
+def answer_questions(text, questions):
+    qa_pipeline = pipeline("question-answering")
+    answers = []
+
+    for question in questions:
+        answer = qa_pipeline(question=question, context=text)
+        answers.append(answer["answer"])
+
+    return answers
+
+# Example usage
+pdf_path = '/content/Draft RRs with Covering Letter.pdf'
+pdf_text = extract_text_from_pdf(pdf_path)
+
+if not pdf_text:
+    print("Error: Unable to extract text from the PDF.")
+else:
+    # Summarize the text
+    summarized_text: str = summarize_text(pdf_text, max_length=200)
+    print("Summarized Text:", summarized_text)
+
+    # Check if the summarized text is not empty
+    if summarized_text.strip():
+        questions: list[str] = ["what is written in the draft?", "what are the amendments?", "what is the date of the publication?"]
+
+        # Answer the questions
+        try:
+            answers: list[str] = answer_questions(pdf_text, questions)
+            print("\nAnswers to Questions:")
+            for i, answer in enumerate(answers, 1):
+                print(f"Q{i}: {answer}")
+        except Exception as e:
+            print(f"Error generating answers: {e}")
+    else:
+        print("Error: Summarized text is empty.")
