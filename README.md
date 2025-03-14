@@ -1,4 +1,4 @@
-# govt-pdfs-summarize
+# PDF Text Summarization and Q&A Pipeline
 **PDF Text Summarization and Q&A Pipeline**
 
 This project is designed to process text from a PDF document by extracting, summarizing, and answering questions based on its content. It leverages various natural language processing (NLP) techniques and libraries, including NLTK, Gensim, and Hugging Face Transformers.
